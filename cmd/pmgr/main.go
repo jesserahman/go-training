@@ -14,7 +14,6 @@ import (
 	"os"
 )
 
-type userMap map[string][]byte
 type Account struct {
 	Username string `json:"name"`
 	Password []byte `json:"password"`
