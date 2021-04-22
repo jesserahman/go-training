@@ -136,17 +136,13 @@ func (mainVault *Vault) updatePasswordInVault(username string, newPassword strin
 		os.Exit(1)
 	}
 
-	newVault := Vault{}
 	encryptedPasswordAsByteSlice := encrypt([]byte(newPassword), hashedPassphrase)
-	for _, v := range mainVault.Accounts {
-		if v.Username == username {
-			newVault.Accounts = append(newVault.Accounts, Account{Username: v.Username, Password: encryptedPasswordAsByteSlice})
-		} else {
-			newVault.Accounts = append(newVault.Accounts, Account{Username: v.Username, Password: v.Password})
+	for index, value := range mainVault.Accounts {
+		if value.Username == username {
+			mainVault.Accounts[index] = Account{Username: value.Username, Password: encryptedPasswordAsByteSlice}
 		}
 	}
 
-	*mainVault = newVault
 	successMessage := "successfully updated"
 	fmt.Println(successMessage)
 	return successMessage
