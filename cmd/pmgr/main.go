@@ -48,17 +48,18 @@ func runCommandLineProgram(filename string, hashedPassphrase string) {
 	vaultChanged := false
 	switch os.Args[1] {
 	case "add":
-		validateCommandLineArguments(4)
+		validateCommandLineArguments(3)
 		mainVault.addUserEntryToVault(os.Args[2], os.Args[3], hashedPassphrase)
 		vaultChanged = true
+	case "get":
+		validateCommandLineArguments(2)
+		mainVault.getPasswordFromVault(os.Args[2], hashedPassphrase)
 	case "update":
-		validateCommandLineArguments(4)
+		validateCommandLineArguments(3)
 		(&mainVault).updatePasswordInVault(os.Args[2], os.Args[3], hashedPassphrase)
 		vaultChanged = true
-	case "get":
-		validateCommandLineArguments(3)
-		mainVault.getPasswordFromVault(os.Args[2], hashedPassphrase)
 	case "delete":
+		validateCommandLineArguments(2)
 		(&mainVault).deleteUserEntryFromVault(os.Args[2])
 		vaultChanged = true
 	default:
@@ -87,9 +88,10 @@ func addHelperFlagText() {
 	}
 }
 
-func validateCommandLineArguments(expectedLength int) {
-	if len(os.Args) != expectedLength {
-		errorMessage := fmt.Sprintf("Wrong number of arguments: expected %v, got %v", expectedLength, len(os.Args))
+func validateCommandLineArguments(expectedArgumentCount int) {
+	expectedLengthExcludingFilePath := expectedArgumentCount+1
+	if len(os.Args) !=  expectedLengthExcludingFilePath{
+		errorMessage := fmt.Sprintf("Wrong number of arguments: expected %v, got %v", expectedLengthExcludingFilePath-1, len(os.Args)-1)
 		fmt.Println(errorMessage)
 		os.Exit(1)
 	}
