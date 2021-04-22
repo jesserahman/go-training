@@ -29,24 +29,46 @@ func main() {
 	runCommandLineProgram(filename, hashedPassphrase)
 }
 
-func runCommandLineProgram(fileName string, hashedPassphrase string) {
+func runCommandLineProgram(filename string, hashedPassphrase string) {
 	addHelperFlagText()
+
+	// populate vault with data from file
+	// create new vault with existing data
+	mainVault := Vault{}
+	dataFile, error := ioutil.ReadFile(filename)
+	if error != nil {
+		fmt.Println("unable to read file")
+		os.Exit(1)
+	}
+	error = json.Unmarshal([]byte(dataFile), &mainVault)
+	if error != nil {
+		fmt.Println("unable to populate vault")
+		os.Exit(1)
+	}
+	fmt.Printf("vault with existing data: %+v", mainVault)
+
+	// CRUD on vault
 
 	switch os.Args[1] {
 	case "add":
 		validateCommandLineArguments(4)
-		addUserEntryToFile(os.Args[2], os.Args[3], fileName, hashedPassphrase)
+		mainVault.addUserEntryToVault(os.Args[2], os.Args[3], hashedPassphrase)
 	case "update":
 		validateCommandLineArguments(4)
-		updatePassword(os.Args[2], os.Args[3], fileName, hashedPassphrase)
+		(&mainVault).updatePasswordInVault(os.Args[2], os.Args[3], hashedPassphrase)
 	case "get":
 		validateCommandLineArguments(3)
-		getPassword(os.Args[2], fileName, hashedPassphrase)
+		mainVault.getPasswordFromVault(os.Args[2], hashedPassphrase)
 	case "delete":
-		deleteUserEntry(os.Args[2], fileName)
+		(&mainVault).deleteUserEntryFromVault(os.Args[2])
 	default:
 		fmt.Printf("You entered an invalid option")
 	}
+
+	fmt.Printf("\nvault after all changes: %+v", mainVault)
+	// send changes back to data file
+	updateJsonFile(mainVault, filename)
+	fmt.Println("vault updated")
 }
 
 // *** main functions
@@ -72,106 +94,92 @@ func validateCommandLineArguments(expectedLength int) {
 	}
 }
 
-func addUserEntryToFile(username string, password string, filename string, hashedPassphrase string) string {
-	// create new vault with existing data
-	vaultWithExistingData := Vault{}
-	dataFile, _ := ioutil.ReadFile(filename)
-	_ = json.Unmarshal([]byte(dataFile), &vaultWithExistingData)
-
-	for _, v := range vaultWithExistingData.Accounts {
+func (mainVault *Vault) isUserInVault(username string) bool {
+	found := false
+	for _, v := range mainVault.Accounts {
 		if v.Username == username {
-			fmt.Println("Oops! Looks like this account already exists")
-			os.Exit(1)
+			found = true
 		}
 	}
+	return found
+}
+
+func (mainVault *Vault) addUserEntryToVault(username string, password string, hashedPassphrase string) {
+	if mainVault.isUserInVault(username) {
+		fmt.Println("Oops! Looks like this account already exists")
+		os.Exit(1)
+	}
+
+	//encrypt new password
 	encryptedPasswordAsByteSlice := encrypt([]byte(password), hashedPassphrase)
 
 	// create new account entry
 	newAccount := Account{Username: username, Password: encryptedPasswordAsByteSlice}
-	vaultWithExistingData.Accounts = append(vaultWithExistingData.Accounts, newAccount)
+	mainVault.Accounts = append(mainVault.Accounts, newAccount)
+}
 
-	// update json file with new data
-	updateJsonFile(vaultWithExistingData, filename)
-	successMessage := "User added successfully"
+func (mainVault *Vault) getPasswordFromVault(username string, hashedPassphrase string) string {
+	if !mainVault.isUserInVault(username) {
+		fmt.Println("Oops! Looks like that username doesn't exist")
+		os.Exit(1)
+	}
+
+	for _, v := range mainVault.Accounts {
+		if v.Username == username {
+			fmt.Println("password: ", string(decrypt(v.Password, hashedPassphrase)))
+		}
+	}
+
+	successMessage := "successfully retrieved password"
 	fmt.Println(successMessage)
 	return successMessage
 }
 
-func updatePassword(username string, newPassword string, filename string, hashedPassphrase string) string {
-	vaultWithExistingData := Vault{}
-	dataFile, _ := ioutil.ReadFile(filename)
-	_ = json.Unmarshal([]byte(dataFile), &vaultWithExistingData)
+func (mainVault *Vault) updatePasswordInVault(username string, newPassword string, hashedPassphrase string) string {
+	if !mainVault.isUserInVault(username) {
+		fmt.Println("Oops! Looks like that username doesn't exist")
+		os.Exit(1)
+	}
 
 	newVault := Vault{}
-	found := false
 	encryptedPasswordAsByteSlice := encrypt([]byte(newPassword), hashedPassphrase)
-	for _, v := range vaultWithExistingData.Accounts {
-
+	for _, v := range mainVault.Accounts {
 		if v.Username == username {
-			found = true
 			newVault.Accounts = append(newVault.Accounts, Account{Username: v.Username, Password: encryptedPasswordAsByteSlice})
 		} else {
 			newVault.Accounts = append(newVault.Accounts, Account{Username: v.Username, Password: v.Password})
 		}
 	}
 
-	printErrorMessageIfNecessary(found)
-
-	// update json file with new data
-	updateJsonFile(newVault, filename)
+	*mainVault = newVault
 	successMessage := "successfully updated"
 	fmt.Println(successMessage)
 	return successMessage
 }
 
-func getPassword(username string, filename string, hashedPassphrase string) string {
-	vaultWithExistingData := Vault{}
-	dataFile, _ := ioutil.ReadFile(filename)
-	_ = json.Unmarshal([]byte(dataFile), &vaultWithExistingData)
-
-	found := false
-	for _, v := range vaultWithExistingData.Accounts {
-		if v.Username == username {
-			fmt.Println("password: ", string(decrypt(v.Password, hashedPassphrase)))
-			found = true
-		}
+func (mainVault *Vault) deleteUserEntryFromVault(username string) string {
+	if !mainVault.isUserInVault(username) {
+		fmt.Println("Oops! Looks like that username doesn't exist")
+		os.Exit(1)
 	}
 
-	printErrorMessageIfNecessary(found)
-	successMessage := "successfully retrieved password"
-	fmt.Println(successMessage)
-	return successMessage
-}
-
-func deleteUserEntry(username string, filename string) string {
-	vaultWithExistingData := Vault{}
-	dataFile, _ := ioutil.ReadFile(filename)
-	_ = json.Unmarshal([]byte(dataFile), &vaultWithExistingData)
-
 	newVault := Vault{}
-	found := false
-	for _, v := range vaultWithExistingData.Accounts {
-		if v.Username == username {
-			found = true
-		} else {
+
+	for _, v := range mainVault.Accounts {
+		if v.Username != username {
 			newVault.Accounts = append(newVault.Accounts, Account{Username: v.Username, Password: v.Password})
 		}
 	}
 
-	printErrorMessageIfNecessary(found)
-	updateJsonFile(newVault, filename)
+	*mainVault = newVault
+	fmt.Printf("\nnew vault:%+v ", newVault)
+	fmt.Printf("\nmain vault:%+v ", mainVault)
 	successMessage := "successfully deleted"
 	fmt.Println(successMessage)
 	return successMessage
 }
 
 // **** Helper functions
-func printErrorMessageIfNecessary(found bool) {
-	if !found {
-		fmt.Println("Oops! Looks like that username doesn't exist")
-		os.Exit(1)
-	}
-}
 func updateJsonFile(newVault Vault, filename string) {
 	// update json file with new data
 	out, error := json.MarshalIndent(newVault, "", " ")
