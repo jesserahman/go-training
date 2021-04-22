@@ -32,7 +32,6 @@ func main() {
 func runCommandLineProgram(filename string, hashedPassphrase string) {
 	addHelperFlagText()
 
-	// populate vault with data from file
 	// create new vault with existing data
 	mainVault := Vault{}
 	dataFile, error := ioutil.ReadFile(filename)
@@ -45,30 +44,32 @@ func runCommandLineProgram(filename string, hashedPassphrase string) {
 		fmt.Println("unable to populate vault")
 		os.Exit(1)
 	}
-	fmt.Printf("vault with existing data: %+v", mainVault)
 
-	// CRUD on vault
-
+	vaultChanged := false
 	switch os.Args[1] {
 	case "add":
 		validateCommandLineArguments(4)
 		mainVault.addUserEntryToVault(os.Args[2], os.Args[3], hashedPassphrase)
+		vaultChanged = true
 	case "update":
 		validateCommandLineArguments(4)
 		(&mainVault).updatePasswordInVault(os.Args[2], os.Args[3], hashedPassphrase)
+		vaultChanged = true
 	case "get":
 		validateCommandLineArguments(3)
 		mainVault.getPasswordFromVault(os.Args[2], hashedPassphrase)
 	case "delete":
 		(&mainVault).deleteUserEntryFromVault(os.Args[2])
+		vaultChanged = true
 	default:
 		fmt.Printf("You entered an invalid option")
 	}
 
-	fmt.Printf("\nvault after all changes: %+v", mainVault)
-	// send changes back to data file
-	updateJsonFile(mainVault, filename)
-	fmt.Println("vault updated")
+	// send any changes back to data file
+	if vaultChanged {
+		fmt.Println("updating json")
+		updateJsonFile(mainVault, filename)
+	}
 }
 
 // *** main functions
@@ -116,6 +117,7 @@ func (mainVault *Vault) addUserEntryToVault(username string, password string, ha
 	// create new account entry
 	newAccount := Account{Username: username, Password: encryptedPasswordAsByteSlice}
 	mainVault.Accounts = append(mainVault.Accounts, newAccount)
+	fmt.Println("User added to Vault")
 }
 
 func (mainVault *Vault) getPasswordFromVault(username string, hashedPassphrase string) string {
@@ -172,8 +174,6 @@ func (mainVault *Vault) deleteUserEntryFromVault(username string) string {
 	}
 
 	*mainVault = newVault
-	fmt.Printf("\nnew vault:%+v ", newVault)
-	fmt.Printf("\nmain vault:%+v ", mainVault)
 	successMessage := "successfully deleted"
 	fmt.Println(successMessage)
 	return successMessage
