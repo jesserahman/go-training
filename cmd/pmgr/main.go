@@ -34,16 +34,7 @@ func runCommandLineProgram(filename string, hashedPassphrase string) {
 
 	// create new vault with existing data
 	mainVault := Vault{}
-	dataFile, error := ioutil.ReadFile(filename)
-	if error != nil {
-		fmt.Println("unable to read file")
-		os.Exit(1)
-	}
-	error = json.Unmarshal([]byte(dataFile), &mainVault)
-	if error != nil {
-		fmt.Println("unable to populate vault")
-		os.Exit(1)
-	}
+	mainVault.populateVaultWithDataFromFile(filename)
 
 	vaultChanged := false
 	switch os.Args[1] {
@@ -182,6 +173,19 @@ func (mainVault *Vault) deleteUserEntryFromVault(username string) string {
 }
 
 // **** Helper functions
+func (mainVault *Vault) populateVaultWithDataFromFile(filename string){
+	dataFile, error := ioutil.ReadFile(filename)
+	if error != nil {
+		fmt.Println("unable to read file")
+		os.Exit(1)
+	}
+	error = json.Unmarshal([]byte(dataFile), &mainVault)
+	if error != nil {
+		fmt.Println("unable to populate vault")
+		os.Exit(1)
+	}
+}
+
 func updateJsonFile(newVault Vault, filename string) {
 	// update json file with new data
 	out, error := json.MarshalIndent(newVault, "", " ")
