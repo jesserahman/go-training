@@ -88,16 +88,6 @@ func validateCommandLineArguments(expectedArgumentCount int) {
 	}
 }
 
-func (mainVault *Vault) isUserInVault(username string) bool {
-	found := false
-	for _, v := range mainVault.Accounts {
-		if v.Username == username {
-			found = true
-		}
-	}
-	return found
-}
-
 func (mainVault *Vault) addUserEntryToVault(username string, password string, hashedPassphrase string) {
 	if mainVault.isUserInVault(username) {
 		fmt.Println("Oops! Looks like this account already exists")
@@ -119,15 +109,17 @@ func (mainVault *Vault) getPasswordFromVault(username string, hashedPassphrase s
 		os.Exit(1)
 	}
 
+	var storedPassword string
 	for _, v := range mainVault.Accounts {
 		if v.Username == username {
-			fmt.Println("password: ", string(decrypt(v.Password, hashedPassphrase)))
+			storedPassword = string(decrypt(v.Password, hashedPassphrase))
+			fmt.Println("password: ", storedPassword)
 		}
 	}
 
 	successMessage := "successfully retrieved password"
 	fmt.Println(successMessage)
-	return successMessage
+	return storedPassword
 }
 
 func (mainVault *Vault) updatePasswordInVault(username string, newPassword string, hashedPassphrase string) string {
@@ -169,6 +161,16 @@ func (mainVault *Vault) deleteUserEntryFromVault(username string) string {
 }
 
 // **** Helper functions
+func (mainVault *Vault) isUserInVault(username string) bool {
+	found := false
+	for _, v := range mainVault.Accounts {
+		if v.Username == username {
+			found = true
+		}
+	}
+	return found
+}
+
 func (mainVault *Vault) populateVaultWithDataFromFile(filename string){
 	dataFile, error := ioutil.ReadFile(filename)
 	if error != nil {
